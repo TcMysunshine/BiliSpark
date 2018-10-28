@@ -68,17 +68,19 @@ class MongoDB():
         collec = self.db[collection]
         # print(collec.find_one(query))
         if collec.find_one(query) is not None:
-            print("hh")
+            # print("hh")
             collec.find_and_modify(query, newValue)
         else:
             collec.insert_one(newValue)
 
 
 if __name__ == '__main__':
-    # mongourl='mongodb://localhost:27017/'
-    # db = 'bili'
-    # collection = 'bili'
-    # mongo = MongoDB(mongourl, db)
+    mongourl='mongodb://localhost:27017/'
+    db = 'bili'
+    collection = 'bili'
+    mongo = MongoDB(mongourl, db)
+    # for i in mongo.find_sort('allmonth_play_dm',{},'dm',-1):
+    #     print(i)
     # mongo.insert_one('hh', {
     #     "name": 'chenhao',
     #     "body": {
@@ -86,6 +88,9 @@ if __name__ == '__main__':
     #         "width": 23
     #     }
     # })
-    # query = {'name': 'chenhao'}
+    query = {'month': '1'}
+    result = mongo.TopK('bymonth_play_dm', query,'dm',10)
+    for r in result:
+        print(r)
     # mongo.find_and_modify(db,query,{'age': 122})
     # print(mongo.insert_one('hh'))
