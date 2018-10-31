@@ -17,11 +17,11 @@ class BiliSparkStreaming():
         '''监控文件目录'''
         self.monitor_directory = "/Users/chenhao/Documents/BiliSpark/data"
         '''写入文件目录'''
-        self.writeDirectory = '/Users/chenhao/Documents/BiliData'
+        self.writeDirectory = '/Users/chenhao/Documents/BiliData/data/'
         self.streamingContext = StreamingContext(self.sc, 10)
         sparkSession = SparkSession.builder.config(conf=scf).getOrCreate()
 
-        self.mongo = MongoDB("mongodb://localhost:27017/", "bili")
+        self.mongo = MongoDB("mongodb://localhost:27017/", "biliSpark")
 
         self.months = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
         '''存储目前为止所有的数据'''
@@ -53,7 +53,8 @@ class BiliSparkStreaming():
         if not rdd.isEmpty():
             try:
                 spark = self.getSparkSessionInstance(rdd.context.getConf())
-                rowRDD = rdd.map(lambda x: Row(tv=x[0], label=x[1], play=x[2], dm=x[3], month=x[4]))
+                rowRDD = rdd.map(lambda x: Row(tv=x[0], label=x[1], play=x[2],
+                                               dm=x[3], month=x[4]))
                 '''转换为DataFrame'''
                 temp_bili_data = spark.createDataFrame(rowRDD)
                 temp_bili_data.show()
@@ -61,7 +62,8 @@ class BiliSparkStreaming():
                 if self.total_data is None:
                     self.total_data = temp_bili_data.toPandas()
                 else:
-                    self.total_data = pd.concat([self.total_data, temp_bili_data.toPandas()], axis=0, sort=True,
+                    self.total_data = pd.concat([self.total_data, temp_bili_data.toPandas()],
+                                                axis=0, sort=True,
                                                 ignore_index=True)
             except BaseException as e:
                 print(e)
@@ -71,16 +73,15 @@ class BiliSparkStreaming():
             tv_bili = self.total_data.groupby(['tv']).sum().reset_index()
 
             '''将所有月的播放量和弹幕存储到MongoDB中'''
-            # tv_bili_json = self.db2Json(tv_bili)
-            #
-            # for tv_bili in tv_bili_json:
-            #     # print(tv_bili)
-            #     query = {
-            #         'tv': tv_bili['tv']
-            #     }
-            #     # print(query)
-            #     self.insert_mongo('allmonth_play_dm', query, tv_bili)
-            # """
+            tv_bili_json = self.db2Json(tv_bili)
+            for tv_bili_temp_json in tv_bili_json:
+                # print(tv_bili)
+                query = {
+                    'tv': tv_bili_temp_json['tv']
+                }
+                # print(query)
+                self.insert_mongo('allmonth_play_dm', query, tv_bili_temp_json)
+
             '''每个月各个番剧的播放量或者弹幕并排序'''
             for tempmonth in self.months:
                 '''筛选出各个月份的播放量和弹幕'''
@@ -99,19 +100,18 @@ class BiliSparkStreaming():
                         }
                         # print(x)
                         self.insert_mongo('bymonth_play_dm', query, x)
-            #     if not temp_month_tv.empty:
-            #         '''各个月份的番剧的播放量'''
-            #         temp_month_tv_sort = temp_month_tv_bymonth.sort_values(by='play', ascending=False)
-            #         self.write_playOrdm_bymonth(temp_month_tv_sort, tempmonth, 'play')
-            #     if not temp_month_tv.empty:
-            #         '''各个月份的番剧的弹幕'''
-            #         temp_month_dm_sort = temp_month_tv_bymonth.sort_values(by='dm', ascending=False)
-            #         self.write_playOrdm_bymonth(temp_month_dm_sort, tempmonth, 'dm')
-            # self.write_playOrdm_Allmonth(tv_bili, 'play')
-            # self.write_playOrdm_Allmonth(tv_bili, 'dm')
-            # """
+                if not temp_month_tv.empty:
+                    '''各个月份的番剧的播放量'''
+                    temp_month_tv_sort = temp_month_tv_bymonth.sort_values(by='play', ascending=False)
+                    self.write_playOrdm_bymonth(temp_month_tv_sort, tempmonth, 'play')
+                if not temp_month_tv.empty:
+                    '''各个月份的番剧的弹幕'''
+                    temp_month_dm_sort = temp_month_tv_bymonth.sort_values(by='dm', ascending=False)
+                    self.write_playOrdm_bymonth(temp_month_dm_sort, tempmonth, 'dm')
+            self.write_playOrdm_Allmonth(tv_bili, 'play')
+            self.write_playOrdm_Allmonth(tv_bili, 'dm')
 
-    '''datafrmae转换为json数据'''
+    '''DataFrame转换为json数据'''
     def db2Json(self, db):
         json_record = db.to_json(orient='records')
         return json.loads(json_record)
@@ -136,7 +136,7 @@ class BiliSparkStreaming():
                 # print(data[key] + str(data[value]))
                 w.write(tempdata['tv'] + ":" + str(tempdata[dmorPlay]) + "\n")
 
-    '''将数据插入数据库'''
+    '''将数据插入Mongo数据库,存在就更新数据'''
     def insert_mongo(self, collection, query, data):
         self.mongo.insertOrUpdate(collection, query, data)
 

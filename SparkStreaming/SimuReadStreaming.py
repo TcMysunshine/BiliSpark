@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark import SparkConf
-import os, threading, time
+import os,threading, time
 os.environ['PYSPARK_PYTHON'] = '/Users/chenhao/anaconda3/bin/python'
 
 
@@ -48,7 +48,7 @@ def readData(filepath):
 
 
 if __name__ == '__main__':
-    read_filepath = "/Users/chenhao/Documents/bili.csv"
+    read_filepath = "/Users/chenhao/Documents/BiliData/bili.csv"
     write_directory = "/Users/chenhao/Documents/BiliSpark/data"
     data = readData(read_filepath)
     sst = SimuStreamThread(data, write_directory)
